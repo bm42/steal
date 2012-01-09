@@ -7,10 +7,10 @@
 		each = function(o, cb) {
 			var i, len;
 
-			// weak array detection, but we only use this internally so don't
-			// pass it weird stuff
-			if ( o.pop ) {
-				for ( i = 0, len = o.length; i <len; i++) {
+			// weak array/arguments detection, but we only use this internally
+			// so don't pass it weird stuff
+			if ( o.length ) {
+				for ( i = 0, len = o.length; i < len; i++) {
 					cb.call(o[i],i,o[i], o)
 				}
 			} else {
@@ -22,6 +22,9 @@
 		},
 		isString = function( o ) {
 			return typeof o == "string";
+		},
+		isObject = function( o ) {
+			return Object( o ) === o;
 		},
 		isFn = function( o ) {
 			return typeof o == "function";
@@ -60,7 +63,7 @@
 		// makes an array of things, or a mapping of things
 		map = function( args, cb ) {
 			var arr = [];
-			each(args, function(i, str){
+			each(args, function( i, str ){
 				arr.push( cb ? ( isString( cb ) ? str[cb] : cb.call( str, str )) : str )
 			});
 			return arr;
@@ -84,7 +87,7 @@
 		oldsteal = win.steal,
 		// if oldsteal is an object
 		// we use it as options to configure steal
-		opts = typeof oldsteal == "object" ? oldsteal : {};
+		opts = isObject( oldsteal ) ? oldsteal : {};
 		
 	// =============================== STEAL ===============================
 
@@ -752,7 +755,10 @@
 		s = steal,
 		id = 0,
 		steals = {},
-		preloadElem = "MozAppearance" in docEl.style ? "object" : "img";
+		preloadElem = "MozAppearance" in docEl.style ? "object" : "img",
+		stealError = function( str ) {
+			throw "steal.js : " + str;
+		}
 
 
 	/**
@@ -766,6 +772,10 @@
 	extend(steal, {
 		each : each,
 		extend : extend,
+		error : stealError,
+		isString : isString,
+		isFn: isFn,
+		isObject: isObject,
 		isRhino: win.load && win.readUrl && win.readFile,
 		/**
 		 * @attribute options
@@ -1281,7 +1291,7 @@
 		 */
 		load: function(returnScript) {
 			// if we are already loading / loaded
-			if(this.loading || this.loaded.isResolved()){
+			if ( this.loading || this.loaded.isResolved()){
 				return;
 			}
 			
@@ -1323,7 +1333,7 @@
 					self.executed(script);
 				}, function( error, src ) {
 					win.clearTimeout && clearTimeout( self.completeTimeout )
-					throw "steal.js : " + self.options.src + " not completed"
+					stealError( self.options.src + " not completed" );
 				});
 			}
 		}
@@ -1359,7 +1369,7 @@
 			raw.type = ext;
 		}
 		if ( ! types[raw.type] ) {
-			throw "steal.js - type " + raw.type + " has not been loaded.";
+			stealError( raw.type + " has not been loaded." );
 		}
 		var converters =  types[raw.type].convert;
 		raw.buildType = converters.length ? converters[converters.length - 1] : raw.type;
@@ -1674,7 +1684,7 @@ request = function( options, success, error ) {
 					path: to
 				};
 			} else { // its an object
-				each( form, steal.map );
+				each( from, steal.map );
 			}
 			return this;
 		},
@@ -1756,7 +1766,7 @@ request = function( options, success, error ) {
 			if( doc && ! self.completed && ! self.completeTimeout && !steal.isRhino &&
 				(self.options.src.protocol == "file" || !support.error)){
 				self.completeTimeout = setTimeout(function(){
-					throw "steal.js : "+self.options.src+" not completed"
+					stealError( self.options.src + " not completed" );
 				},5000);
 			}
 		}),
@@ -2041,7 +2051,7 @@ if (support.interactive) {
 			startFile;
 		extend(options, steal.getScriptOptions());
 		// a steal that existed before this steal
-		if ( typeof oldsteal == "object" ) {
+		if ( isObject( oldsteal )) {
 			extend( options, oldsteal );
 		}
 		
